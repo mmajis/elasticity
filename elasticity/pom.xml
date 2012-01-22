@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>net.majakorpi</groupId>
 	<artifactId>elasticity</artifactId>
@@ -163,6 +164,17 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.jvnet.jaxb2.maven2</groupId>
+			<artifactId>maven-jaxb2-plugin</artifactId>
+			<version>0.8.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.specialprojectslab</groupId>
+			<artifactId>jmxetric</artifactId>
+			<version>0.0.5</version>
+		</dependency>
 
 	</dependencies>
 
@@ -210,7 +222,7 @@
 				</configuration>
 			</plugin>
 
-			<!-- Ensures we are compiling at 1.6 level -->
+			<!-- Ensures we are compiling at a specific compiler level -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -229,6 +241,41 @@
 				<configuration>
 					<path>/${project.build.finalName}</path>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.jvnet.jaxb2.maven2</groupId>
+				<artifactId>maven-jaxb2-plugin</artifactId>
+				<version>0.8.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+						    <generatePackage>net.majakorpi.elasticity.integration.ganglia.xml</generatePackage>
+							<!-- if you want to put DTD somewhere else <schemaDirectory>src/main/jaxb</schemaDirectory> -->
+							<extension>true</extension>
+							<!--  <schemaLanguage>DTD</schemaLanguage>  -->
+							<schemaIncludes>
+								<schemaInclude>*.xsd</schemaInclude>
+							</schemaIncludes>
+							<bindingIncludes>
+								<bindingInclude>*.jaxb</bindingInclude>
+							</bindingIncludes>
+							<args>
+								<arg>-Xinject-listener-code</arg>
+							</args>
+						</configuration>
+					</execution>
+				</executions>
+				<dependencies>
+					<dependency>
+						<groupId>org.jvnet.jaxb2-commons</groupId>
+						<artifactId>property-listener-injector</artifactId>
+						<version>1.0</version>
+					</dependency>
+				</dependencies>
 			</plugin>
 
 		</plugins>

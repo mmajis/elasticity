@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="GANGLIA_XML">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="GRID"/>
+        <xs:element ref="CLUSTER"/>
+        <xs:element ref="HOST"/>
+      </xs:choice>
+      <xs:attribute name="VERSION" use="required"/>
+      <xs:attribute name="SOURCE" use="required"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="GRID">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="CLUSTER"/>
+        <xs:element ref="GRID"/>
+        <xs:element ref="HOSTS"/>
+        <xs:element ref="METRICS"/>
+      </xs:choice>
+      <xs:attribute name="NAME" use="required"/>
+      <xs:attribute name="AUTHORITY" use="required"/>
+      <xs:attribute name="LOCALTIME"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="CLUSTER">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="HOST"/>
+        <xs:element ref="HOSTS"/>
+        <xs:element ref="METRICS"/>
+      </xs:choice>
+      <xs:attribute name="NAME" use="required"/>
+      <xs:attribute name="OWNER"/>
+      <xs:attribute name="TAGS"/>
+      <xs:attribute name="LATLONG"/>
+      <xs:attribute name="URL"/>
+      <xs:attribute name="LOCALTIME" use="required"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="HOST">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="METRIC"/>
+      </xs:sequence>
+      <xs:attribute name="NAME" use="required"/>
+      <xs:attribute name="IP" use="required"/>
+      <xs:attribute name="LOCATION"/>
+      <xs:attribute name="REPORTED" use="required"/>
+      <xs:attribute name="TN"/>
+      <xs:attribute name="TMAX"/>
+      <xs:attribute name="DMAX"/>
+      <xs:attribute name="GMOND_STARTED"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="METRIC">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="EXTRA_DATA"/>
+      </xs:sequence>
+      <xs:attribute name="NAME" use="required"/>
+      <xs:attribute name="VAL" use="required"/>
+      <xs:attribute name="TYPE" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="string"/>
+            <xs:enumeration value="int8"/>
+            <xs:enumeration value="uint8"/>
+            <xs:enumeration value="int16"/>
+            <xs:enumeration value="uint16"/>
+            <xs:enumeration value="int32"/>
+            <xs:enumeration value="uint32"/>
+            <xs:enumeration value="float"/>
+            <xs:enumeration value="double"/>
+            <xs:enumeration value="timestamp"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="UNITS"/>
+      <xs:attribute name="TN"/>
+      <xs:attribute name="TMAX"/>
+      <xs:attribute name="DMAX"/>
+      <xs:attribute name="SLOPE">
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="zero"/>
+            <xs:enumeration value="positive"/>
+            <xs:enumeration value="negative"/>
+            <xs:enumeration value="both"/>
+            <xs:enumeration value="unspecified"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="SOURCE" default="gmond">
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="gmond"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="EXTRA_DATA">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="EXTRA_ELEMENT"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="EXTRA_ELEMENT">
+    <xs:complexType>
+      <xs:attribute name="NAME" use="required"/>
+      <xs:attribute name="VAL" use="required"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="HOSTS">
+    <xs:complexType>
+      <xs:attribute name="UP" use="required"/>
+      <xs:attribute name="DOWN" use="required"/>
+      <xs:attribute name="SOURCE" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="gmond"/>
+            <xs:enumeration value="gmetad"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="METRICS">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="EXTRA_DATA"/>
+      </xs:sequence>
+      <xs:attribute name="NAME" use="required"/>
+      <xs:attribute name="SUM" use="required"/>
+      <xs:attribute name="NUM" use="required"/>
+      <xs:attribute name="TYPE" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="string"/>
+            <xs:enumeration value="int8"/>
+            <xs:enumeration value="uint8"/>
+            <xs:enumeration value="int16"/>
+            <xs:enumeration value="uint16"/>
+            <xs:enumeration value="int32"/>
+            <xs:enumeration value="uint32"/>
+            <xs:enumeration value="float"/>
+            <xs:enumeration value="double"/>
+            <xs:enumeration value="timestamp"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="UNITS"/>
+      <xs:attribute name="SLOPE">
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="zero"/>
+            <xs:enumeration value="positive"/>
+            <xs:enumeration value="negative"/>
+            <xs:enumeration value="both"/>
+            <xs:enumeration value="unspecified"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="SOURCE" default="gmond">
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="gmond"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

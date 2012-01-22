@@ -1,0 +1,43 @@
+<jxb:bindings version="1.0"
+               xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
+               xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <jxb:bindings schemaLocation="ganglia.xsd" >
+	<jxb:bindings node="//xs:element[@name='CLUSTER']">
+  		<jxb:class name="Cluster"/>
+  		<jxb:property name="Cluster"/>
+	</jxb:bindings> 
+	<jxb:bindings node="//xs:element[@name='EXTRA_DATA']">
+  		<jxb:class name="ExtraData"/>
+  		<jxb:property name="ExtraData"/>
+	</jxb:bindings> 
+	<jxb:bindings node="//xs:element[@name='EXTRA_ELEMENT']">
+  		<jxb:class name="ExtraElement"/>
+  		<jxb:property name="ExtraElement"/>
+	</jxb:bindings> 
+	<jxb:bindings node="//xs:element[@name='GANGLIA_XML']">
+  		<jxb:class name="GangliaXML"/>
+  		<jxb:property name="GangliaXML"/>
+	</jxb:bindings> 
+	<jxb:bindings node="//xs:element[@name='GRID']">
+  		<jxb:class name="Grid"/>
+  		<jxb:property name="Grid"/>
+	</jxb:bindings> 
+	<jxb:bindings node="//xs:element[@name='HOST']">
+  		<jxb:class name="Host"/>
+  		<jxb:property name="Host"/>
+	</jxb:bindings> 
+	<jxb:bindings node="//xs:element[@name='HOSTS']">
+  		<jxb:class name="Hosts"/>
+  		<jxb:property name="Hosts"/>
+	</jxb:bindings> 
+	<jxb:bindings node="//xs:element[@name='METRIC']">
+  		<jxb:class name="Metric"/>
+  		<jxb:property name="Metric"/>
+	</jxb:bindings> 
+	<jxb:bindings node="//xs:element[@name='METRICS']">
+  		<jxb:class name="Metrics"/>
+  		<jxb:property name="Metrics"/>
+	</jxb:bindings> 
+  </jxb:bindings> 
+<!-- schemaLocation="ganglia.xsd" node="/xs:schema" -->
+</jxb:bindings> 
