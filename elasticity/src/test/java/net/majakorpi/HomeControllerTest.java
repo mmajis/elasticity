@@ -17,7 +17,7 @@ public class HomeControllerTest {
 	public void testController() throws UnknownHostException, IOException, JAXBException {
 		HomeController controller = new HomeController();
 		Model model = new ExtendedModelMap();
-		Assert.assertEquals("home",controller.home(model));
+		Assert.assertEquals("home",controller.home(model, ""));
 		
 		Object message = model.asMap().get("metricSource");
 		Assert.assertEquals("gmetad",message);
