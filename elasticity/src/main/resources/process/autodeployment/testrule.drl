@@ -1,0 +1,29 @@
+#created on: Jan 29, 2012
+package net.majakorpi.elasticity
+
+import net.majakorpi.elasticity.model.Cluster
+import net.majakorpi.elasticity.model.Metric
+import net.majakorpi.elasticity.controller.web.RuleOutput
+import java.util.List
+#import java.util.ArrayList
+
+#global List<String> rulesOutput
+#global Boolean scalingActionDecided
+#global org.slf4j.Logger logger
+#declare any global variables here
+
+rule "load-5 over 1"
+  
+    when
+        #metric: Metric (name == "load_five", sum > 0.01, $cluster : cluster )
+        $rulesOutput : RuleOutput(output == "outputput")
+        $clusters: List ()
+        $cluster: Cluster() from $clusters
+        $metric: Metric() from $cluster.metrics
+    then
+        System.out.println("Fired!");
+        #System.out.println("Cluster: "+$cluster.getName());
+		#rulesOutput.setOutput("123");
+		#logger.debug("jeee");
+		#scalingActionDecided = Boolean.TRUE;
+end

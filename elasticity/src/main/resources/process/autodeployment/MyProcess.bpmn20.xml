@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:activiti="http://activiti.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="http://www.activiti.org/test">
+  <process id="MyProcess" name="MyProcess">
+    <documentation>Place documentation for the 'MyProcess' process here.</documentation>
+    <startEvent id="startevent1" name="Start"></startEvent>
+    <businessRuleTask id="decideScaling" name="Make scaling decision" activiti:rules="load-5 over 1" activiti:ruleVariablesInput=" ${clusters}, ${rulesOutput}" activiti:exclude="false" activiti:resultVariableName="rulesOutput"></businessRuleTask>
+    <sequenceFlow id="flow1" name="" sourceRef="scripttask1" targetRef="decideScaling"></sequenceFlow>
+    <exclusiveGateway id="exclusivegateway1" name="Exclusive Gateway" default="noScalingDecidedFlow"></exclusiveGateway>
+    <sequenceFlow id="flow2" name="" sourceRef="decideScaling" targetRef="exclusivegateway1"></sequenceFlow>
+    <endEvent id="noScalingEnd" name="End"></endEvent>
+    <sequenceFlow id="noScalingDecidedFlow" name="No scaling decided" sourceRef="exclusivegateway1" targetRef="noScalingEnd">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${false}]]></conditionExpression>
+    </sequenceFlow>
+    <serviceTask id="scalingTask" name="Act on scaling decision" activiti:class="net.majakorpi.elasticity.actuator.ScalingActuatorServiceImpl"></serviceTask>
+    <sequenceFlow id="scalingDecidedFlow" name="Scaling decided" sourceRef="exclusivegateway1" targetRef="scalingTask">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${false}]]></conditionExpression>
+    </sequenceFlow>
+    <endEvent id="scalingEnd" name="End"></endEvent>
+    <sequenceFlow id="flow3" name="" sourceRef="scalingTask" targetRef="scalingEnd"></sequenceFlow>
+    <endEvent id="scalingFailedEnd" name="End"></endEvent>
+    <sequenceFlow id="flow4" name="" sourceRef="scalingTask" targetRef="scalingFailedEnd"></sequenceFlow>
+    <scriptTask id="scripttask1" name="Script Task" scriptFormat="javascript">
+      <script><![CDATA[1==1]]></script>
+    </scriptTask>
+    <sequenceFlow id="flow5" name="" sourceRef="startevent1" targetRef="scripttask1"></sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_MyProcess">
+    <bpmndi:BPMNPlane bpmnElement="MyProcess" id="BPMNPlane_MyProcess">
+      <bpmndi:BPMNShape bpmnElement="startevent1" id="BPMNShape_startevent1">
+        <omgdc:Bounds height="35" width="35" x="60" y="270"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="decideScaling" id="BPMNShape_decideScaling">
+        <omgdc:Bounds height="55" width="105" x="239" y="260"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway1" id="BPMNShape_exclusivegateway1">
+        <omgdc:Bounds height="40" width="40" x="399" y="267"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="noScalingEnd" id="BPMNShape_noScalingEnd">
+        <omgdc:Bounds height="35" width="35" x="402" y="360"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="scalingTask" id="BPMNShape_scalingTask">
+        <omgdc:Bounds height="55" width="105" x="502" y="260"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="scalingEnd" id="BPMNShape_scalingEnd">
+        <omgdc:Bounds height="35" width="35" x="662" y="226"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="scalingFailedEnd" id="BPMNShape_scalingFailedEnd">
+        <omgdc:Bounds height="35" width="35" x="662" y="287"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="scripttask1" id="BPMNShape_scripttask1">
+        <omgdc:Bounds height="55" width="105" x="110" y="262"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flow1" id="BPMNEdge_flow1">
+        <omgdi:waypoint x="215" y="289"></omgdi:waypoint>
+        <omgdi:waypoint x="239" y="287"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow2" id="BPMNEdge_flow2">
+        <omgdi:waypoint x="344" y="287"></omgdi:waypoint>
+        <omgdi:waypoint x="399" y="287"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="noScalingDecidedFlow" id="BPMNEdge_noScalingDecidedFlow">
+        <omgdi:waypoint x="419" y="307"></omgdi:waypoint>
+        <omgdi:waypoint x="419" y="360"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="scalingDecidedFlow" id="BPMNEdge_scalingDecidedFlow">
+        <omgdi:waypoint x="439" y="287"></omgdi:waypoint>
+        <omgdi:waypoint x="502" y="287"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow3" id="BPMNEdge_flow3">
+        <omgdi:waypoint x="607" y="287"></omgdi:waypoint>
+        <omgdi:waypoint x="679" y="261"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow4" id="BPMNEdge_flow4">
+        <omgdi:waypoint x="607" y="287"></omgdi:waypoint>
+        <omgdi:waypoint x="629" y="287"></omgdi:waypoint>
+        <omgdi:waypoint x="662" y="304"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow5" id="BPMNEdge_flow5">
+        <omgdi:waypoint x="95" y="287"></omgdi:waypoint>
+        <omgdi:waypoint x="110" y="289"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

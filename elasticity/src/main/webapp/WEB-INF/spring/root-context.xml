@@ -6,5 +6,16 @@
 	<!-- Root Context: defines shared resources visible to all other web components -->
 				
 	<import resource="db.xml" />	 
+	<import resource="activiti.xml" />
+	
+	<bean id="julLoggingConfig"   class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+    <property name="targetClass"> 
+        <value>org.activiti.engine.impl.util.LogUtil</value>
+    </property>
+    <property name="targetMethod">
+        <value>readJavaUtilLoggingConfigFromClasspath</value>
+    </property>
+    
+</bean>
 	
 </beans>

@@ -129,6 +129,12 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-all</artifactId>
+			<version>1.9.0</version>
+		</dependency>
+
 		<!-- logging -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -176,6 +182,43 @@
 			<version>0.0.5</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.activiti</groupId>
+			<artifactId>activiti-engine</artifactId>
+			<version>5.8</version>
+		</dependency>
+		<dependency>
+			<groupId>org.activiti</groupId>
+			<artifactId>activiti-spring</artifactId>
+			<version>5.8</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.drools</groupId>
+			<artifactId>drools-core</artifactId>
+			<version>5.2.0.Final</version>
+		</dependency>
+		<dependency>
+			<groupId>org.drools</groupId>
+			<artifactId>knowledge-api</artifactId>
+			<version>5.2.0.Final</version>
+		</dependency>
+		<dependency>
+			<groupId>org.drools</groupId>
+			<artifactId>drools-compiler</artifactId>
+			<version>5.2.0.Final</version>
+		</dependency>
+		<dependency>
+			<groupId>janino</groupId>
+			<artifactId>janino</artifactId>
+			<version>2.5.15</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<version>1.3.163</version>
+		</dependency>
 	</dependencies>
 
 	<repositories>
@@ -194,6 +237,12 @@
 				<enabled>false</enabled>
 			</snapshots>
 		</repository>
+		<repository>
+			<id>activitiRepository</id>
+			<name>Activiti Repository</name>
+			<url>http://maven.alfresco.com/nexus/content/repositories/activiti</url>
+		</repository>
+
 	</repositories>
 
 	<build>
@@ -253,10 +302,10 @@
 							<goal>generate</goal>
 						</goals>
 						<configuration>
-						    <generatePackage>net.majakorpi.elasticity.integration.ganglia.xml</generatePackage>
+							<generatePackage>net.majakorpi.elasticity.integration.ganglia.xml</generatePackage>
 							<!-- if you want to put DTD somewhere else <schemaDirectory>src/main/jaxb</schemaDirectory> -->
 							<extension>true</extension>
-							<!--  <schemaLanguage>DTD</schemaLanguage>  -->
+							<!-- <schemaLanguage>DTD</schemaLanguage> -->
 							<schemaIncludes>
 								<schemaInclude>*.xsd</schemaInclude>
 							</schemaIncludes>
