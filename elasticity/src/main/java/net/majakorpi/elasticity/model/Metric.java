@@ -3,6 +3,8 @@ package net.majakorpi.elasticity.model;
 import java.io.Serializable;
 import java.math.BigDecimal;
 
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+
 public class Metric implements Serializable {
 
 	/**
@@ -70,6 +72,8 @@ public class Metric implements Serializable {
 		return cluster;
 	}
 	
-	
+	public String toString() {
+		return ReflectionToStringBuilder.toString(this);
+	}
 
 }

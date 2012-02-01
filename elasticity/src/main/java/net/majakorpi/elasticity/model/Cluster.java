@@ -4,6 +4,8 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+
 public class Cluster implements Serializable{
 
 	/**
@@ -37,5 +39,9 @@ public class Cluster implements Serializable{
 
 	public int getHostsDown() {
 		return hostsDown;
+	}
+	
+	public String toString() {
+		return ReflectionToStringBuilder.toString(this);
 	}
 }

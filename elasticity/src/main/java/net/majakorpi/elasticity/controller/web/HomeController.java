@@ -22,6 +22,8 @@ import net.majakorpi.elasticity.controller.util.GangliaConverter;
 import net.majakorpi.elasticity.integration.ganglia.xml.GangliaXML;
 import net.majakorpi.elasticity.model.Cluster;
 import net.majakorpi.elasticity.model.Metric;
+import net.majakorpi.elasticity.model.RuleOutput;
+import net.majakorpi.elasticity.model.ScalingAction;
 
 import org.activiti.engine.HistoryService;
 import org.activiti.engine.ManagementService;
@@ -114,23 +116,18 @@ public class HomeController {
 				variableMap.put(clusterStr + "_" + "metric" + (j++), m);
 			}
 		}
-		//List<String> rulesOutput = new  ArrayList<String>();
-		RuleOutput ruleOutput = new RuleOutput(0, "outputput");
-		variableMap.put("rulesOutput", ruleOutput);
-		//variableMap.put("rulesOutput", rulesOutput);
-		variableMap.put("logger", LOGGER);
+		RuleOutput ruleOutput = new RuleOutput();
+		variableMap.put(RuleOutput.PROCESS_VARIABLE_NAME, ruleOutput);
 		variableMap.put("clusters", clusters);
 		System.out.println("running activiti process...");
 		ProcessInstance pi = runtimeService.startProcessInstanceByKey(
 				"MyProcess", variableMap);
 
-
-				
-		LOGGER.debug("history service variable updates: " + historyService.createHistoricDetailQuery()
-		  .variableUpdates()
-		  .processInstanceId(pi.getId())
-		  .orderByVariableRevision().desc()
-		  .list());
+		LOGGER.debug("ruleoutput: " + ruleOutput);
+		
+		for (ScalingAction scalingAction : ruleOutput.getScalingActions()) {
+			
+		}
 	}
 
 	private InputStream getGangliaData() {
