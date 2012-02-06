@@ -1,0 +1,29 @@
+#created on: Jan 29, 2012
+package net.majakorpi.elasticity
+
+import net.majakorpi.elasticity.model.Cluster
+import net.majakorpi.elasticity.model.Host
+import net.majakorpi.elasticity.model.SummaryMetric
+import net.majakorpi.elasticity.model.RuleOutput
+import net.majakorpi.elasticity.model.ScalingAction
+import net.majakorpi.elasticity.model.ScalingAction.ScalingType
+import java.util.List
+
+#declare any global variables here
+
+rule "load-one under 0.5"
+  
+    when
+        $ruleOutput : RuleOutput()
+        $clusters: List()
+        $cluster: Cluster(name == "appcluster") from $clusters
+        $sumMetric: SummaryMetric (name == "load_one", sum < 0.5) from $cluster.metrics
+	    $oldestHostStartTime : Number( ) from accumulate( Host($started : started) from $cluster.hosts,  min($started) )
+	    $host : Host ( started == $oldestHostStartTime) from $cluster.hosts
+    then
+        System.out.println("Fired load-one < 0.5 !");
+        System.out.println("load_one: " + $sumMetric.getSum());
+		System.out.println("oldest start time: " + $oldestHostStartTime);
+		$ruleOutput.add(new ScalingAction($cluster, ScalingType.LESS, 1, null, 
+			null, null, null, null, $host.getVmInstanceId()));
+end
