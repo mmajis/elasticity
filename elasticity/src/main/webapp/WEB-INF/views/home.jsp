@@ -6,8 +6,8 @@
 </head>
 <body>
 <h1> 
-	Hello world!
+	Hello there!
 </h1>
-${controllerMessage}
+${xml}
 </body>
 </html>

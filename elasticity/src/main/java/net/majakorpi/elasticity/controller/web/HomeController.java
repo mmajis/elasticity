@@ -5,6 +5,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -21,7 +23,7 @@ import javax.xml.bind.JAXBException;
 import net.majakorpi.elasticity.controller.util.GangliaConverter;
 import net.majakorpi.elasticity.integration.ganglia.xml.GangliaXML;
 import net.majakorpi.elasticity.model.Cluster;
-import net.majakorpi.elasticity.model.Metric;
+import net.majakorpi.elasticity.model.SummaryMetric;
 import net.majakorpi.elasticity.model.RuleOutput;
 import net.majakorpi.elasticity.model.ScalingAction;
 
@@ -32,6 +34,7 @@ import org.activiti.engine.TaskService;
 import org.activiti.engine.history.HistoricDetail;
 import org.activiti.engine.history.HistoricTaskInstance;
 import org.activiti.engine.runtime.ProcessInstance;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +55,7 @@ public class HomeController {
 			.getLogger(HomeController.class);
 
 	private static final String GMETAD_ADDRESS = "ctrl.majakorpi.net";
-	private static final int GMETAD_INTERACTIVE_PORT = 8651;
+	private static final int GMETAD_INTERACTIVE_PORT = 8652;
 
 	@Autowired
 	private RuntimeService runtimeService;
@@ -75,22 +78,30 @@ public class HomeController {
 	 */
 	@RequestMapping(value = "/", method = RequestMethod.GET)
 	public String home(Model model,
-			@RequestParam(defaultValue = "") String gangliaQuery)
+			@RequestParam(defaultValue = "/?filter=summary") String gangliaQuery)
 			throws UnknownHostException, IOException, JAXBException {
-		LOGGER.info("Fetching Ganglia XML...");
+		LOGGER.info("Fetching Ganglia XML with query " + gangliaQuery);
 
 		JAXBContext context = JAXBContext.newInstance(GangliaXML.class);
 
+		InputStream is = getSocketGangliaData(gangliaQuery);
+		String xml = IOUtils.toString(is,
+				"ISO-8859-1");
+		
+		LOGGER.debug(xml);
+
+		StringReader reader = new StringReader(xml);
+
 		GangliaXML gXML = (GangliaXML) context.createUnmarshaller().unmarshal(
-				getGangliaData());
+				reader);
 
 		runProcess(gXML);
 
 		model.addAttribute("metricSource", gXML.getSOURCE());
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		context.createMarshaller().marshal(gXML, baos);
-		model.addAttribute("xml", baos.toString("ISO-8859-1"));
-
+		model.addAttribute("xml", xml.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>"));
+		
 		LOGGER.info(managementService.getProperties().toString());
 
 		return "home";
@@ -112,7 +123,7 @@ public class HomeController {
 			String clusterStr = "cluster" + (i++);
 			variableMap.put(clusterStr, c);
 			int j = 0;
-			for (Metric m : c.getMetrics()) {
+			for (SummaryMetric m : c.getMetrics()) {
 				variableMap.put(clusterStr + "_" + "metric" + (j++), m);
 			}
 		}
@@ -124,9 +135,9 @@ public class HomeController {
 				"MyProcess", variableMap);
 
 		LOGGER.debug("ruleoutput: " + ruleOutput);
-		
+
 		for (ScalingAction scalingAction : ruleOutput.getScalingActions()) {
-			
+
 		}
 	}
 
@@ -143,10 +154,12 @@ public class HomeController {
 	private InputStream getSocketGangliaData(String gangliaQuery)
 			throws IOException {
 		Socket gangliaXMLSocket = getSocket();
-
+		LOGGER.debug("writing to ganglia socket");
 		BufferedWriter br = new BufferedWriter(new OutputStreamWriter(
 				gangliaXMLSocket.getOutputStream()));
-		br.append(gangliaQuery);
+		br.append(gangliaQuery+"\n");
+		br.flush();
+		LOGGER.debug("flushed socket.");
 
 		return gangliaXMLSocket.getInputStream();
 	}

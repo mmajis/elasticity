@@ -12,52 +12,53 @@ public class Metric implements Serializable {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	public enum Slope {
-		
-		ZERO, NEGATIVE, POSITIVE, BOTH;
-		
-		public static Slope fromString(String slopeString) {
-			if ("both".equalsIgnoreCase(slopeString)) {
-				return BOTH;
-			} else if ("positive".equalsIgnoreCase(slopeString)) {
-				return POSITIVE;
-			} else if ("negative".equalsIgnoreCase(slopeString)) {
-				return NEGATIVE;
-			} else if ("zero".equalsIgnoreCase(slopeString)) {
-				return ZERO;
-			}
-			return null;
-		}
-	};
-	
 	private final String name;
-	private final BigDecimal sum;
-	private final Integer num;
+	private final BigDecimal bigDecimalValue;
+	private final String stringValue;
 	private final String unit;
 	private final Slope slope;
 	private final Cluster cluster;
-	
-	public Metric(String name, BigDecimal sum, Integer num, String unit,
-			Slope slope, Cluster cluster) {
+	private final Host host;
+
+	public Metric(String name, String value, String unit, Slope slope,
+			Cluster cluster, Host host) {
 		super();
 		this.name = name;
-		this.sum = sum;
-		this.num = num;
 		this.unit = unit;
 		this.slope = slope;
 		this.cluster = cluster;
+		this.host = host;
+		this.stringValue = value;
+		BigDecimal convertedValue = null;
+		try {
+			convertedValue = new BigDecimal(value);
+		} catch (NumberFormatException nfe) {
+			// Do nothing and yield to the fact that the value is not a number.
+		}
+		this.bigDecimalValue = convertedValue;
+	}
+
+	public Host getHost() {
+		return host;
 	}
 
 	public String getName() {
 		return name;
 	}
 
-	public BigDecimal getSum() {
-		return sum;
+	/**
+	 * Returns the numeric value of this metric or <code>null</code> if the
+	 * value is not numeric.
+	 * @return 	 The numeric value of this metric or <code>null</code> if the
+	 * value is not numeric.
+
+	 */
+	public BigDecimal getNumericValue() {
+		return bigDecimalValue;
 	}
 
-	public Integer getNum() {
-		return num;
+	public String getValue() {
+		return stringValue;
 	}
 
 	public String getUnit() {
@@ -71,7 +72,7 @@ public class Metric implements Serializable {
 	public Cluster getCluster() {
 		return cluster;
 	}
-	
+
 	public String toString() {
 		return ReflectionToStringBuilder.toString(this);
 	}

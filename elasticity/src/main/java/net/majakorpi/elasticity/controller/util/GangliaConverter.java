@@ -9,10 +9,15 @@ import net.majakorpi.elasticity.integration.ganglia.xml.Grid;
 import net.majakorpi.elasticity.integration.ganglia.xml.Hosts;
 import net.majakorpi.elasticity.integration.ganglia.xml.Metrics;
 import net.majakorpi.elasticity.model.Cluster;
+import net.majakorpi.elasticity.model.Host;
 import net.majakorpi.elasticity.model.Metric;
-import net.majakorpi.elasticity.model.Metric.Slope;
+import net.majakorpi.elasticity.model.SummaryMetric;
+import net.majakorpi.elasticity.model.Slope;
 
 public class GangliaConverter {
+
+	private static final String VM_IMAGE_ID_METRIC_NAME = "vmImageId";
+	private static final String VM_INSTANCE_ID_METRIC_NAME = "vmInstanceId";
 
 	public static List<Cluster> convert(GangliaXML gangliaXML) {
 		List<Cluster> clusters = new ArrayList<Cluster>();
@@ -20,34 +25,39 @@ public class GangliaConverter {
 			if (gangliaO instanceof net.majakorpi.elasticity.integration.ganglia.xml.Grid) {
 				Grid gangliaGrid = (Grid) gangliaO;
 				for (Object gridO : gangliaGrid.getCLUSTEROrGRIDOrHOSTS()) {
+					// loop stuff under grid element
 					if (gridO instanceof net.majakorpi.elasticity.integration.ganglia.xml.Cluster) {
+						// handle clusters
 						net.majakorpi.elasticity.integration.ganglia.xml.Cluster gangliaCluster = (net.majakorpi.elasticity.integration.ganglia.xml.Cluster) gridO;
 						Integer hostsUp = null;
 						Integer hostsDown = null;
-						List<Metric> metrics = new ArrayList<Metric>();
+						List<SummaryMetric> metrics = new ArrayList<SummaryMetric>();
+						List<Host> hosts = new ArrayList<Host>();
 						for (Object clusterO : gangliaCluster
 								.getHOSTOrHOSTSOrMETRICS()) {
+							// scan for hosts element
 							if (clusterO instanceof Hosts) {
-								Hosts hosts = (Hosts) clusterO;
-								hostsUp = Integer.valueOf(hosts.getUP());
-								hostsDown = Integer.valueOf(hosts.getDOWN());
+								Hosts hostsElement = (Hosts) clusterO;
+								hostsUp = Integer.valueOf(hostsElement.getUP());
+								hostsDown = Integer.valueOf(hostsElement
+										.getDOWN());
 							}
 						}
-						Cluster cluster = new Cluster(metrics,
-								gangliaCluster.getNAME(), hostsUp, hostsDown);
+						Cluster cluster = new Cluster(metrics, hosts,
+								gangliaCluster.getNAME(),
+								gangliaCluster.getOWNER(), hostsUp, hostsDown);
 						clusters.add(cluster);
 						for (Object clusterO : gangliaCluster
 								.getHOSTOrHOSTSOrMETRICS()) {
 							if (clusterO instanceof Metrics) {
-								Metrics gangliaMetrics = (Metrics) clusterO;
-								Metric resultMetric = new Metric(
-										gangliaMetrics.getNAME(),
-										new BigDecimal(gangliaMetrics.getSUM()),
-										Integer.valueOf(gangliaMetrics.getNUM()),
-										gangliaMetrics.getUNITS(), Slope
-												.fromString(gangliaMetrics
-														.getSLOPE()), cluster);
+								// cluster metrics
+								SummaryMetric resultMetric = convertSummaryMetric(
+										cluster, clusterO);
 								metrics.add(resultMetric);
+							} else if (clusterO instanceof net.majakorpi.elasticity.integration.ganglia.xml.Host) {
+								// host in a cluster
+								Host host = convertHost(cluster, clusterO);
+								hosts.add(host);
 							}
 						}
 					}
@@ -56,6 +66,44 @@ public class GangliaConverter {
 			}
 		}
 		return clusters;
+	}
+
+	private static SummaryMetric convertSummaryMetric(Cluster cluster,
+			Object clusterO) {
+		Metrics gangliaMetrics = (Metrics) clusterO;
+		SummaryMetric resultMetric = new SummaryMetric(
+				gangliaMetrics.getNAME(), new BigDecimal(
+						gangliaMetrics.getSUM()),
+				Integer.valueOf(gangliaMetrics.getNUM()),
+				gangliaMetrics.getUNITS(), Slope.fromString(gangliaMetrics
+						.getSLOPE()), cluster);
+		return resultMetric;
+	}
+
+	private static Host convertHost(Cluster cluster, Object clusterO) {
+		net.majakorpi.elasticity.integration.ganglia.xml.Host gangliaHost = (net.majakorpi.elasticity.integration.ganglia.xml.Host) clusterO;
+		List<Metric> hostMetrics = new ArrayList<Metric>();
+		String vmInstanceId = null;
+		String vmImageId = null;
+		for (net.majakorpi.elasticity.integration.ganglia.xml.Metric gangliaMetric : gangliaHost
+				.getMetric()) {
+
+			if (VM_INSTANCE_ID_METRIC_NAME.equals(gangliaMetric.getNAME())) {
+				vmInstanceId = gangliaMetric.getVAL();
+			} else if (VM_IMAGE_ID_METRIC_NAME.equals(gangliaMetric.getNAME())) {
+				vmImageId = gangliaMetric.getVAL();
+			}
+		}
+		Host host = new Host(hostMetrics, gangliaHost.getNAME(), vmInstanceId,
+				vmImageId, cluster, Long.valueOf(gangliaHost.getGMONDSTARTED()));
+		for (net.majakorpi.elasticity.integration.ganglia.xml.Metric gangliaMetric : gangliaHost
+				.getMetric()) {
+
+			hostMetrics.add(new Metric(gangliaMetric.getNAME(), gangliaMetric
+					.getVAL(), gangliaMetric.getUNITS(), Slope
+					.fromString(gangliaMetric.getSLOPE()), cluster, host));
+		}
+		return host;
 	}
 
 }

@@ -1,0 +1,26 @@
+#created on: Jan 29, 2012
+package net.majakorpi.elasticity
+
+import net.majakorpi.elasticity.model.Cluster
+import net.majakorpi.elasticity.model.SummaryMetric
+import net.majakorpi.elasticity.model.RuleOutput
+import net.majakorpi.elasticity.model.ScalingAction
+import net.majakorpi.elasticity.model.ScalingAction.ScalingType
+import java.util.List
+
+#declare any global variables here
+
+rule "load-one over 0.7"
+  
+    when
+        $ruleOutput : RuleOutput()
+        $clusters: List ()
+        $cluster: Cluster(name == "appcluster") from $clusters
+        $metric: SummaryMetric (name == "load_one", eval(sum / num) > 0.7) from $cluster.metrics
+    then
+        System.out.println("Fired load_one over 0.7!");
+        System.out.println("load_one: " + $metric.getSum());
+		$ruleOutput.add(new ScalingAction($cluster, ScalingType.MORE, 1, 
+			"ec2-keypair-us-east", "subnet-1d887b75", "m1.small", "default", 
+			"ami-4d865624", null));
+end

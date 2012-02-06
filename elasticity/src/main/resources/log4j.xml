@@ -35,6 +35,10 @@
 	<logger name="org.hibernate">
 		<level value="warn" />
 	</logger>
+	
+	<logger name="com.amazonaws">
+		<level value="info" />
+	</logger>
 
 	
 

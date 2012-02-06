@@ -285,18 +285,14 @@
     <documentation id="documentation_process" text="Place documentation for the 'MyProcess' process here."/>
   </bpmn2:Process>
   <bpmn2:StartEvent id="startevent1" name="Start" outgoing="flow5"/>
-  <bpmn2:BusinessRuleTask id="decideScaling" name="Make scaling decision" incoming="flow5" outgoing="flow2" resultVariableName="">
-    <ruleNames>load-5 over 1</ruleNames>
-    <inputVariables> ${clusters}</inputVariables>
-    <inputVariables> ${ruleOutput}</inputVariables>
-  </bpmn2:BusinessRuleTask>
+  <bpmn2:BusinessRuleTask id="decideScaling" name="Make scaling decision" incoming="flow5" outgoing="flow2"/>
   <bpmn2:ExclusiveGateway id="exclusivegateway1" name="Exclusive Gateway" incoming="flow2" outgoing="noScalingDecidedFlow scalingDecidedFlow" default="noScalingDecidedFlow"/>
   <bpmn2:SequenceFlow id="flow2" name="" sourceRef="decideScaling" targetRef="exclusivegateway1"/>
   <bpmn2:EndEvent id="noScalingEnd" name="End" incoming="noScalingDecidedFlow"/>
   <bpmn2:SequenceFlow id="noScalingDecidedFlow" name="No scaling decided" sourceRef="exclusivegateway1" targetRef="noScalingEnd">
     <conditionExpression body="${ruleOutput.scalingActions.size() == 0}"/>
   </bpmn2:SequenceFlow>
-  <bpmn2:ServiceTask id="scalingTask" name="Act on scaling decision" incoming="scalingDecidedFlow" outgoing="flow3 flow4" implementation="net.majakorpi.elasticity.actuator.ScalingActuatorServiceImpl" implementationType="classType"/>
+  <bpmn2:ServiceTask id="scalingTask" name="Act on scaling decision" incoming="scalingDecidedFlow" outgoing="flow3 flow4" implementation="${scalingActuatorService}" implementationType="delegateExpressionType"/>
   <bpmn2:SequenceFlow id="scalingDecidedFlow" name="Scaling decided" sourceRef="exclusivegateway1" targetRef="scalingTask">
     <conditionExpression body="${ruleOutput.scalingActions.size() > 0}"/>
   </bpmn2:SequenceFlow>

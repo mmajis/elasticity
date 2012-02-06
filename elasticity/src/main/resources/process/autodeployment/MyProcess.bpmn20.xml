@@ -3,14 +3,14 @@
   <process id="MyProcess" name="MyProcess">
     <documentation>Place documentation for the 'MyProcess' process here.</documentation>
     <startEvent id="startevent1" name="Start"></startEvent>
-    <businessRuleTask id="decideScaling" name="Make scaling decision" activiti:rules="load-5 over 1" activiti:ruleVariablesInput=" ${clusters}, ${ruleOutput}" activiti:exclude="false"></businessRuleTask>
+    <businessRuleTask id="decideScaling" name="Make scaling decision" activiti:rules="" activiti:ruleVariablesInput=" ${clusters}, ${ruleOutput}" activiti:exclude="false"></businessRuleTask>
     <exclusiveGateway id="exclusivegateway1" name="Exclusive Gateway" default="noScalingDecidedFlow"></exclusiveGateway>
     <sequenceFlow id="flow2" name="" sourceRef="decideScaling" targetRef="exclusivegateway1"></sequenceFlow>
     <endEvent id="noScalingEnd" name="End"></endEvent>
     <sequenceFlow id="noScalingDecidedFlow" name="No scaling decided" sourceRef="exclusivegateway1" targetRef="noScalingEnd">
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ruleOutput.scalingActions.size() == 0}]]></conditionExpression>
     </sequenceFlow>
-    <serviceTask id="scalingTask" name="Act on scaling decision" activiti:class="net.majakorpi.elasticity.actuator.ScalingActuatorServiceImpl"></serviceTask>
+    <serviceTask id="scalingTask" name="Act on scaling decision" activiti:delegateExpression="${scalingActuatorService}"></serviceTask>
     <sequenceFlow id="scalingDecidedFlow" name="Scaling decided" sourceRef="exclusivegateway1" targetRef="scalingTask">
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ruleOutput.scalingActions.size() > 0}]]></conditionExpression>
     </sequenceFlow>
