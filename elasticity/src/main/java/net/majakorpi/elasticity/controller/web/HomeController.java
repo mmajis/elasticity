@@ -84,26 +84,25 @@ public class HomeController {
 
 		JAXBContext context = JAXBContext.newInstance(GangliaXML.class);
 
-		InputStream is = getSocketGangliaData(gangliaQuery);
-		String xml = IOUtils.toString(is,
-				"ISO-8859-1");
-		
-		LOGGER.debug(xml);
+		InputStream isSummary = getGangliaSummaryData();
+		InputStream isHosts = getGangliaHostData();
+		String xmlSummary = IOUtils.toString(isSummary, "ISO-8859-1");
+		String xmlHosts = IOUtils.toString(isHosts, "ISO-8859-1");
+		LOGGER.debug("Summary xml:\n" + xmlSummary);
+		LOGGER.debug("\n\n\n");
+		LOGGER.debug("Host xml:\n" + xmlHosts);
 
-		StringReader reader = new StringReader(xml);
-
-		GangliaXML gXML = (GangliaXML) context.createUnmarshaller().unmarshal(
+		StringReader reader = new StringReader(xmlSummary);
+		GangliaXML summaryXML = (GangliaXML) context.createUnmarshaller().unmarshal(
 				reader);
+		reader = new StringReader(xmlHosts);
+		GangliaXML hostXML = (GangliaXML) context.createUnmarshaller().unmarshal(
+				reader);
+		runProcess(summaryXML, hostXML);
 
-		runProcess(gXML);
-
-		model.addAttribute("metricSource", gXML.getSOURCE());
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		context.createMarshaller().marshal(gXML, baos);
+		String xml = xmlSummary + "\n\n\n\n" + xmlHosts;
 		model.addAttribute("xml", xml.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>"));
 		
-		LOGGER.info(managementService.getProperties().toString());
-
 		return "home";
 	}
 
@@ -115,8 +114,11 @@ public class HomeController {
 		return socket;
 	}
 
-	private void runProcess(GangliaXML gXML) {
-		List<Cluster> clusters = GangliaConverter.convert(gXML);
+	private void runProcess(GangliaXML summaryXML, GangliaXML hostXML) {
+		List<Cluster> clusters = GangliaConverter.convert(summaryXML, hostXML);
+		for (Cluster c : clusters) {
+			LOGGER.debug(c.toString());
+		}
 		HashMap<String, Object> variableMap = new HashMap<String, Object>();
 		int i = 0;
 		for (Cluster c : clusters) {
@@ -136,11 +138,12 @@ public class HomeController {
 
 		LOGGER.debug("ruleoutput: " + ruleOutput);
 
-		for (ScalingAction scalingAction : ruleOutput.getScalingActions()) {
-
-		}
 	}
 
+	/**
+	 * Temporary method to feed xml data from file instead of socket.
+	 * @return
+	 */
 	private InputStream getGangliaData() {
 		try {
 			return new ClassPathResource("ganglia_summary_example.xml")
@@ -151,17 +154,29 @@ public class HomeController {
 		return null;
 	}
 
-	private InputStream getSocketGangliaData(String gangliaQuery)
+	private InputStream getGangliaSummaryData()
 			throws IOException {
 		Socket gangliaXMLSocket = getSocket();
 		LOGGER.debug("writing to ganglia socket");
 		BufferedWriter br = new BufferedWriter(new OutputStreamWriter(
 				gangliaXMLSocket.getOutputStream()));
-		br.append(gangliaQuery+"\n");
+		br.append("/?filter=summary"+"\n");
 		br.flush();
 		LOGGER.debug("flushed socket.");
 
 		return gangliaXMLSocket.getInputStream();
 	}
 
+	private InputStream getGangliaHostData()
+			throws IOException {
+		Socket gangliaXMLSocket = getSocket();
+		LOGGER.debug("writing to ganglia socket");
+		BufferedWriter br = new BufferedWriter(new OutputStreamWriter(
+				gangliaXMLSocket.getOutputStream()));
+		br.append("/\n");
+		br.flush();
+		LOGGER.debug("flushed socket.");
+
+		return gangliaXMLSocket.getInputStream();
+	}
 }

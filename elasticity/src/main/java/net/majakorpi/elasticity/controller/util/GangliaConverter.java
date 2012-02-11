@@ -2,6 +2,7 @@ package net.majakorpi.elasticity.controller.util;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import net.majakorpi.elasticity.integration.ganglia.xml.GangliaXML;
@@ -11,16 +12,23 @@ import net.majakorpi.elasticity.integration.ganglia.xml.Metrics;
 import net.majakorpi.elasticity.model.Cluster;
 import net.majakorpi.elasticity.model.Host;
 import net.majakorpi.elasticity.model.Metric;
-import net.majakorpi.elasticity.model.SummaryMetric;
 import net.majakorpi.elasticity.model.Slope;
+import net.majakorpi.elasticity.model.SummaryMetric;
 
 public class GangliaConverter {
 
 	private static final String VM_IMAGE_ID_METRIC_NAME = "vmImageId";
 	private static final String VM_INSTANCE_ID_METRIC_NAME = "vmInstanceId";
 
-	public static List<Cluster> convert(GangliaXML gangliaXML) {
-		List<Cluster> clusters = new ArrayList<Cluster>();
+	public static List<Cluster> convert(GangliaXML summaryXML, GangliaXML hostXML) {
+		HashMap<String, Cluster> clusters = new HashMap<String, Cluster>();
+		convert(summaryXML, clusters);
+		convert(hostXML, clusters);
+		return new ArrayList<Cluster>(clusters.values());
+	}
+	
+	private static HashMap<String, Cluster> convert(GangliaXML gangliaXML, HashMap<String, Cluster> clusters) {
+		//List<Cluster> clusters = new ArrayList<Cluster>();
 		for (Object gangliaO : gangliaXML.getGRIDOrCLUSTEROrHOST()) {
 			if (gangliaO instanceof net.majakorpi.elasticity.integration.ganglia.xml.Grid) {
 				Grid gangliaGrid = (Grid) gangliaO;
@@ -29,10 +37,11 @@ public class GangliaConverter {
 					if (gridO instanceof net.majakorpi.elasticity.integration.ganglia.xml.Cluster) {
 						// handle clusters
 						net.majakorpi.elasticity.integration.ganglia.xml.Cluster gangliaCluster = (net.majakorpi.elasticity.integration.ganglia.xml.Cluster) gridO;
+						Cluster cluster = clusters.get(gangliaCluster.getNAME());
 						Integer hostsUp = null;
 						Integer hostsDown = null;
-						List<SummaryMetric> metrics = new ArrayList<SummaryMetric>();
-						List<Host> hosts = new ArrayList<Host>();
+						List<SummaryMetric> metrics = cluster != null ? cluster.getMetrics() : new ArrayList<SummaryMetric>();
+						List<Host> hosts = cluster != null ? cluster.getHosts() : new ArrayList<Host>();
 						for (Object clusterO : gangliaCluster
 								.getHOSTOrHOSTSOrMETRICS()) {
 							// scan for hosts element
@@ -43,10 +52,12 @@ public class GangliaConverter {
 										.getDOWN());
 							}
 						}
-						Cluster cluster = new Cluster(metrics, hosts,
-								gangliaCluster.getNAME(),
-								gangliaCluster.getOWNER(), hostsUp, hostsDown);
-						clusters.add(cluster);
+						if (cluster == null) {
+							cluster = new Cluster(metrics, hosts,
+									gangliaCluster.getNAME(),
+									gangliaCluster.getOWNER(), hostsUp, hostsDown);
+						}
+						clusters.put(gangliaCluster.getNAME(), cluster);
 						for (Object clusterO : gangliaCluster
 								.getHOSTOrHOSTSOrMETRICS()) {
 							if (clusterO instanceof Metrics) {

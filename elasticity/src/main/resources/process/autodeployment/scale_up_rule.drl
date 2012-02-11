@@ -19,8 +19,8 @@ rule "load-one over 0.7"
         $metric: SummaryMetric (name == "load_one", eval(sum / num) > 0.7) from $cluster.metrics
     then
         System.out.println("Fired load_one over 0.7!");
-        System.out.println("load_one: " + $metric.getSum());
+        System.out.println("load_one: " + $metric.getSum().doubleValue()/$metric.getNum().intValue());
 		$ruleOutput.add(new ScalingAction($cluster, ScalingType.MORE, 1, 
 			"ec2-keypair-us-east", "subnet-1d887b75", "m1.small", "default", 
-			"ami-4d865624", null));
+			"ami-ab04d4c2", null));
 end

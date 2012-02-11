@@ -1,9 +1,14 @@
 package net.majakorpi.elasticity.model;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class Host {
+public class Host implements Serializable {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private final List<Metric> metrics;
 	private final String name;
 	private final String vmInstanceId;

@@ -16,14 +16,15 @@ rule "load-one under 0.5"
     when
         $ruleOutput : RuleOutput()
         $clusters: List()
-        $cluster: Cluster(name == "appcluster") from $clusters
-        $sumMetric: SummaryMetric (name == "load_one", sum < 0.5) from $cluster.metrics
-	    $oldestHostStartTime : Number( ) from accumulate( Host($started : started) from $cluster.hosts,  min($started) )
+        $cluster: Cluster(name == "appcluster", hostsUp > 1) from $clusters
+        $sumMetric: SummaryMetric (name == "load_one", eval(sum / num) < 0.2) from $cluster.metrics
+	    $oldestHostStartTime : Double( ) from accumulate( Host($started : started, name != "app-single") from $cluster.hosts,  min($started) )
 	    $host : Host ( started == $oldestHostStartTime) from $cluster.hosts
     then
         System.out.println("Fired load-one < 0.5 !");
-        System.out.println("load_one: " + $sumMetric.getSum());
+        System.out.println("load_one: " + $sumMetric.getSum().doubleValue()/$sumMetric.getNum().intValue());
 		System.out.println("oldest start time: " + $oldestHostStartTime);
+		System.out.println("host to terminate: " + $host.getName());
 		$ruleOutput.add(new ScalingAction($cluster, ScalingType.LESS, 1, null, 
 			null, null, null, null, $host.getVmInstanceId()));
 end
