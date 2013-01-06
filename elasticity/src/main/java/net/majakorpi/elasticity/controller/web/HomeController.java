@@ -54,7 +54,7 @@ public class HomeController {
 	private static final Logger LOGGER = LoggerFactory
 			.getLogger(HomeController.class);
 
-	private static final String GMETAD_ADDRESS = "ctrl.majakorpi.net";
+	private static final String GMETAD_ADDRESS = "ganglia.majakorpi.net";
 	private static final int GMETAD_INTERACTIVE_PORT = 8652;
 
 	@Autowired
