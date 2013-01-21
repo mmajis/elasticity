@@ -55,7 +55,7 @@ public class Cluster implements Serializable{
 		return hosts;
 	}
 
-	public String toString() {
-		return ReflectionToStringBuilder.toString(this);
-	}
+//	public String toString() {
+//		return ReflectionToStringBuilder.toString(this);
+//	}
 }

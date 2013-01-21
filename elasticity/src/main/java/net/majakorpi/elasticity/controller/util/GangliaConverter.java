@@ -5,10 +5,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.majakorpi.elasticity.integration.ganglia.xml.GangliaXML;
 import net.majakorpi.elasticity.integration.ganglia.xml.Grid;
 import net.majakorpi.elasticity.integration.ganglia.xml.Hosts;
 import net.majakorpi.elasticity.integration.ganglia.xml.Metrics;
+import net.majakorpi.elasticity.logic.UtilityFunctionScalingDecisionService;
 import net.majakorpi.elasticity.model.Cluster;
 import net.majakorpi.elasticity.model.Host;
 import net.majakorpi.elasticity.model.Metric;
@@ -17,6 +21,9 @@ import net.majakorpi.elasticity.model.SummaryMetric;
 
 public class GangliaConverter {
 
+	private static final Logger LOGGER = LoggerFactory
+			.getLogger(GangliaConverter.class);
+	
 	private static final String VM_IMAGE_ID_METRIC_NAME = "vmImageId";
 	private static final String VM_INSTANCE_ID_METRIC_NAME = "vmInstanceId";
 
@@ -82,12 +89,17 @@ public class GangliaConverter {
 	private static SummaryMetric convertSummaryMetric(Cluster cluster,
 			Object clusterO) {
 		Metrics gangliaMetrics = (Metrics) clusterO;
+//		LOGGER.debug("metric " + gangliaMetrics.getNAME() + ": " + gangliaMetrics.getSUM());
+		BigDecimal sum = "nan".equalsIgnoreCase(gangliaMetrics.getSUM()) ? 
+				null : new BigDecimal(gangliaMetrics.getSUM());
 		SummaryMetric resultMetric = new SummaryMetric(
-				gangliaMetrics.getNAME(), new BigDecimal(
-						gangliaMetrics.getSUM()),
+				gangliaMetrics.getNAME(), 
+				sum,
 				Integer.valueOf(gangliaMetrics.getNUM()),
-				gangliaMetrics.getUNITS(), Slope.fromString(gangliaMetrics
-						.getSLOPE()), cluster);
+				gangliaMetrics.getUNITS(), 
+				Slope.fromString(gangliaMetrics.getSLOPE()), 
+				cluster);
+		
 		return resultMetric;
 	}
 

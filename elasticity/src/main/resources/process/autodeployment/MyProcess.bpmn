@@ -3,20 +3,20 @@
   <process id="MyProcess" name="MyProcess">
     <documentation>Place documentation for the 'MyProcess' process here.</documentation>
     <startEvent id="startevent1" name="Start"></startEvent>
-    <businessRuleTask id="decideScaling" name="Make scaling decision" activiti:rules="" activiti:ruleVariablesInput=" ${clusters}, ${ruleOutput}" activiti:exclude="false"></businessRuleTask>
+    <businessRuleTask id="decideScaling" name="Make scaling decision" activiti:ruleVariablesInput=" ${clusters}, ${ruleOutput}"></businessRuleTask>
     <exclusiveGateway id="exclusivegateway1" name="Exclusive Gateway" default="noScalingDecidedFlow"></exclusiveGateway>
-    <sequenceFlow id="flow2" name="" sourceRef="decideScaling" targetRef="exclusivegateway1"></sequenceFlow>
     <endEvent id="noScalingEnd" name="End"></endEvent>
+    <serviceTask id="scalingTask" name="Act on scaling decision" activiti:delegateExpression="${scalingActuatorService}"></serviceTask>
+    <endEvent id="scalingEnd" name="End"></endEvent>
+    <endEvent id="scalingFailedEnd" name="End"></endEvent>
+    <sequenceFlow id="flow2" name="" sourceRef="decideScaling" targetRef="exclusivegateway1"></sequenceFlow>
     <sequenceFlow id="noScalingDecidedFlow" name="No scaling decided" sourceRef="exclusivegateway1" targetRef="noScalingEnd">
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ruleOutput.scalingActions.size() == 0}]]></conditionExpression>
     </sequenceFlow>
-    <serviceTask id="scalingTask" name="Act on scaling decision" activiti:delegateExpression="${scalingActuatorService}"></serviceTask>
     <sequenceFlow id="scalingDecidedFlow" name="Scaling decided" sourceRef="exclusivegateway1" targetRef="scalingTask">
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${ruleOutput.scalingActions.size() > 0}]]></conditionExpression>
     </sequenceFlow>
-    <endEvent id="scalingEnd" name="End"></endEvent>
     <sequenceFlow id="flow3" name="" sourceRef="scalingTask" targetRef="scalingEnd"></sequenceFlow>
-    <endEvent id="scalingFailedEnd" name="End"></endEvent>
     <sequenceFlow id="flow4" name="" sourceRef="scalingTask" targetRef="scalingFailedEnd"></sequenceFlow>
     <sequenceFlow id="flow5" name="" sourceRef="startevent1" targetRef="decideScaling"></sequenceFlow>
   </process>
@@ -50,14 +50,23 @@
       <bpmndi:BPMNEdge bpmnElement="noScalingDecidedFlow" id="BPMNEdge_noScalingDecidedFlow">
         <omgdi:waypoint x="419" y="307"></omgdi:waypoint>
         <omgdi:waypoint x="419" y="360"></omgdi:waypoint>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="12" width="100" x="10" y="0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge bpmnElement="scalingDecidedFlow" id="BPMNEdge_scalingDecidedFlow">
         <omgdi:waypoint x="439" y="287"></omgdi:waypoint>
         <omgdi:waypoint x="502" y="287"></omgdi:waypoint>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="12" width="100" x="10" y="0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge bpmnElement="flow3" id="BPMNEdge_flow3">
         <omgdi:waypoint x="607" y="287"></omgdi:waypoint>
         <omgdi:waypoint x="679" y="261"></omgdi:waypoint>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="12" width="100" x="10" y="0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge bpmnElement="flow4" id="BPMNEdge_flow4">
         <omgdi:waypoint x="607" y="287"></omgdi:waypoint>
