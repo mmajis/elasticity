@@ -55,7 +55,9 @@ public class SummaryMetric implements Serializable {
 	}
 	
 	public String toString() {
-		return ReflectionToStringBuilder.toString(this);
+		String result = ReflectionToStringBuilder.toString(this);
+		result += " Mean is " + (sum.doubleValue() / num.doubleValue());
+		return result;
 	}
 
 }

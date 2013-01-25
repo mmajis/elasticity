@@ -18,6 +18,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.StreamHandler;
@@ -35,6 +36,8 @@ import org.apache.commons.exec.PumpStreamHandler;
 import org.codehaus.plexus.util.StringOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.AsyncResult;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -46,19 +49,20 @@ public class ChefFacade {
 	private static final Logger LOGGER = LoggerFactory
 			.getLogger(ChefFacade.class);
 
-	public static String WORKING_DIRECTORY = "/Users/mika/chef/chef-repo";
+	public static final String WORKING_DIRECTORY = "/Users/mika/chef/chef-repo";
 
-	private volatile static boolean isChefRunning = false;
+	private volatile boolean isChefRunning = false;
 
-	private static final Lock chefLock = new ReentrantLock();
+	private final Lock chefLock = new ReentrantLock();
 
 	public static final int RETURN_CODE_CHEF_ALREADY_RUNNING = 500;
 
-	private ChefFacade() {
+	public ChefFacade() {
 		super();
 	}
 
-	public static int provisionNewInstance() {
+	@Async
+	public Future<ChefResult> provisionNewInstance() {
 		// knife ec2 server create -I ami-3d4ff254 -x ubuntu -r
 		// "role[base],role[testapp]" --flavor m1.small
 		if (chefLock.tryLock()) {
@@ -67,7 +71,7 @@ public class ChefFacade {
 				CommandLine cmdLine = new CommandLine("knife")
 						.addArgument("ec2").addArgument("server")
 						.addArgument("create").addArgument("-I")
-						.addArgument("ami-3d4ff254").addArgument("-x")
+						.addArgument("ami-990b81f0").addArgument("-x")
 						.addArgument("ubuntu").addArgument("-r")
 						.addArgument("role[base],role[testapp]")
 						.addArgument("--flavor").addArgument("m1.small");
@@ -92,41 +96,48 @@ public class ChefFacade {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-				return resultHandler.getExitValue();
+				LOGGER.info("Chef provisionNewInstance result: " 
+						+ resultHandler.getExitValue());
+				return new AsyncResult<ChefResult>(
+						new ChefResult(resultHandler.getExitValue()));
 			} finally {
 				isChefRunning = false;
 				chefLock.unlock();
 			}
 		} else {
-			return RETURN_CODE_CHEF_ALREADY_RUNNING;
+			LOGGER.info("Chef already running! Skipping this provisionNewInstance request!");
+			return new AsyncResult<ChefResult>(new ChefResult(RETURN_CODE_CHEF_ALREADY_RUNNING));
 		}
 	}
 
-	public static int terminateInstance() {
+	@Async
+	public Future<ChefResult> terminateInstance() {
 		if (chefLock.tryLock()) {
 			try {
 				isChefRunning = true;
 				List<NodeInfo> nodes = getNodes();
 				if (nodes.size() > 1) {
-					return terminateInstanceImpl(findOldestInstance(nodes));
+					return new AsyncResult<ChefResult>(new ChefResult(
+							terminateInstanceImpl(findOldestInstance(nodes))));
 				} else {
 					LOGGER.info("Not terminating an instance as there are less than two.");
-					return 0;
+					return new AsyncResult<ChefResult>(new ChefResult(0));
 				}
 			} finally {
 				isChefRunning = false;
 				chefLock.unlock();
 			}
 		} else {
-			return RETURN_CODE_CHEF_ALREADY_RUNNING;
+			LOGGER.info("Chef already running! Skipping this terminate request!");
+			return new AsyncResult<ChefResult>(new ChefResult(RETURN_CODE_CHEF_ALREADY_RUNNING));
 		}
 	}
 
-	public static boolean isChefRunning() {
+	public boolean isChefRunning() {
 		return isChefRunning;
 	}
 
-	private static int terminateInstanceImpl(String instanceToTerminate) {
+	private int terminateInstanceImpl(String instanceToTerminate) {
 		// knife ec2 server delete i-0d4c1772 -P
 		CommandLine cmdLine = new CommandLine("knife").addArgument("ec2")
 				.addArgument("server").addArgument("delete")
@@ -153,6 +164,8 @@ public class ChefFacade {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+		LOGGER.info("Chef terminateInstanceImpl result: " 
+				+ resultHandler.getExitValue());
 		return resultHandler.getExitValue();
 
 	}
@@ -163,7 +176,7 @@ public class ChefFacade {
 	 * @param nodes
 	 * @return
 	 */
-	private static String findOldestInstance(List<NodeInfo> nodes) {
+	private String findOldestInstance(List<NodeInfo> nodes) {
 		// knife search node role:testapp -F json
 		if (nodes == null) {
 			nodes = getNodes();
@@ -183,7 +196,7 @@ public class ChefFacade {
 		}
 	}
 
-	private static List<NodeInfo> getNodes() {
+	private List<NodeInfo> getNodes() {
 		CommandLine cmdLine = new CommandLine("knife").addArgument("search")
 				.addArgument("node").addArgument("role:testapp")
 				.addArgument("-F").addArgument("json");
@@ -238,7 +251,7 @@ public class ChefFacade {
 		return nodes;
 	}
 
-	private static class NodeInfo {
+	private class NodeInfo {
 		public String instanceId;
 		public Integer uptimeSeconds;
 	}

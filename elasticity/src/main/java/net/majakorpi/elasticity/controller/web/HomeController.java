@@ -14,6 +14,7 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 
 import net.majakorpi.elasticity.controller.util.GangliaConverter;
+import net.majakorpi.elasticity.controller.util.GangliaFacade;
 import net.majakorpi.elasticity.integration.ganglia.xml.GangliaXML;
 import net.majakorpi.elasticity.logic.ScalingDecisionService;
 
@@ -22,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,9 +38,6 @@ public class HomeController {
 
 	private static final Logger LOGGER = LoggerFactory
 			.getLogger(HomeController.class);
-
-	private static final String GMETAD_ADDRESS = "ganglia.majakorpi.net";
-	private static final int GMETAD_INTERACTIVE_PORT = 8652;
 
 //	@Autowired
 //	private RuntimeService runtimeService;
@@ -70,13 +69,10 @@ public class HomeController {
 
 		JAXBContext context = JAXBContext.newInstance(GangliaXML.class);
 
-		InputStream isSummary = getGangliaSummaryData();
-		InputStream isHosts = getGangliaHostData();
+		InputStream isSummary = GangliaFacade.getGangliaSummaryData();
+		InputStream isHosts = GangliaFacade.getGangliaHostData();
 		String xmlSummary = IOUtils.toString(isSummary, "ISO-8859-1");
 		String xmlHosts = IOUtils.toString(isHosts, "ISO-8859-1");
-//		LOGGER.debug("Summary xml:\n" + xmlSummary);
-//		LOGGER.debug("\n\n\n");
-//		LOGGER.debug("Host xml:\n" + xmlHosts);
 
 		StringReader reader = new StringReader(xmlSummary);
 		GangliaXML summaryXML = (GangliaXML) context.createUnmarshaller().unmarshal(
@@ -95,14 +91,6 @@ public class HomeController {
 				xml.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>"));
 		
 		return "home";
-	}
-
-	protected Socket getSocket() throws UnknownHostException, IOException {
-		Socket socket = new Socket();
-		SocketAddress sa = new InetSocketAddress(GMETAD_ADDRESS,
-				GMETAD_INTERACTIVE_PORT);
-		socket.connect(sa, 2000);
-		return socket;
 	}
 
 //	private void runProcess(GangliaXML summaryXML, GangliaXML hostXML) {
@@ -143,31 +131,5 @@ public class HomeController {
 			e.printStackTrace();
 		}
 		return null;
-	}
-
-	private InputStream getGangliaSummaryData()
-			throws IOException {
-		Socket gangliaXMLSocket = getSocket();
-		LOGGER.debug("writing to ganglia socket");
-		BufferedWriter br = new BufferedWriter(new OutputStreamWriter(
-				gangliaXMLSocket.getOutputStream()));
-		br.append("/?filter=summary"+"\n");
-		br.flush();
-		LOGGER.debug("flushed socket.");
-
-		return gangliaXMLSocket.getInputStream();
-	}
-
-	private InputStream getGangliaHostData()
-			throws IOException {
-		Socket gangliaXMLSocket = getSocket();
-		LOGGER.debug("writing to ganglia socket");
-		BufferedWriter br = new BufferedWriter(new OutputStreamWriter(
-				gangliaXMLSocket.getOutputStream()));
-		br.append("/\n");
-		br.flush();
-		LOGGER.debug("flushed socket.");
-
-		return gangliaXMLSocket.getInputStream();
 	}
 }

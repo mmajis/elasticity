@@ -18,7 +18,7 @@
 	</properties>
 
 	<dependencies>
-
+ 
 
 		<!-- Bean Validation Dependencies -->
 
@@ -250,6 +250,20 @@
 			<artifactId>gson</artifactId>
 			<version>2.2.2</version>
 		</dependency>
+
+		<dependency>
+			<groupId>com.yammer.metrics</groupId>
+			<artifactId>metrics-ganglia</artifactId>
+			<version>3.0.0-SNAPSHOT</version>
+			<!-- <scope>provided</scope> -->
+		</dependency>
+
+		<dependency>
+			<groupId>com.yammer.metrics</groupId>
+			<artifactId>metrics-jetty</artifactId>
+			<version>3.0.0-SNAPSHOT</version>
+			<!-- <scope>provided</scope> -->
+		</dependency>
 	</dependencies>
 
 
@@ -274,7 +288,10 @@
 			<name>Activiti Repository</name>
 			<url>http://maven.alfresco.com/nexus/content/repositories/activiti</url>
 		</repository>
-
+	    <repository>
+	      <id>metrics</id>
+	      <url>http://oss.sonatype.org/content/repositories/snapshots</url>
+	    </repository>
 	</repositories>
 
 	<build>
