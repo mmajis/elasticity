@@ -23,6 +23,7 @@
 	</bean>
 -->
 	<bean id="chefFacade" class="net.majakorpi.elasticity.actuator.ChefFacade" />
+	<bean id="chefService" class="net.majakorpi.elasticity.actuator.ChefService" />
 
 	<bean id="utilityFunctionScalingDecisionService" 
 	class="net.majakorpi.elasticity.logic.UtilityFunctionScalingDecisionService">

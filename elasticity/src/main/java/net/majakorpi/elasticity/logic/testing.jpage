@@ -1,0 +1,3 @@
+ChefInterface ci = new net.majakorpi.elasticity.logic.ChefInterface();
+
+ci.terminateInstance();ci.provisionNewInstance();

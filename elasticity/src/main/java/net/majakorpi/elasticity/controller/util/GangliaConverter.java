@@ -90,7 +90,8 @@ public class GangliaConverter {
 			Object clusterO) {
 		Metrics gangliaMetrics = (Metrics) clusterO;
 //		LOGGER.debug("metric " + gangliaMetrics.getNAME() + ": " + gangliaMetrics.getSUM());
-		BigDecimal sum = "nan".equalsIgnoreCase(gangliaMetrics.getSUM()) ? 
+		BigDecimal sum = "nan".equalsIgnoreCase(gangliaMetrics.getSUM()) 
+						|| "inf".equalsIgnoreCase(gangliaMetrics.getSUM()) ? 
 				null : new BigDecimal(gangliaMetrics.getSUM());
 		SummaryMetric resultMetric = new SummaryMetric(
 				gangliaMetrics.getNAME(), 

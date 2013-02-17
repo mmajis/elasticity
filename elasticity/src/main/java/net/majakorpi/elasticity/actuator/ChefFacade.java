@@ -1,124 +1,116 @@
 package net.majakorpi.elasticity.actuator;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.StreamHandler;
 
-import net.majakorpi.elasticity.controller.web.HomeController;
 
-import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecuteResultHandler;
-import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.exec.ExecuteException;
-import org.apache.commons.exec.ExecuteStreamHandler;
-import org.apache.commons.exec.ExecuteWatchdog;
-import org.apache.commons.exec.Executor;
-import org.apache.commons.exec.PumpStreamHandler;
-import org.codehaus.plexus.util.StringOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
 
 public class ChefFacade {
 
 	private static final Logger LOGGER = LoggerFactory
 			.getLogger(ChefFacade.class);
-
-	public static final String WORKING_DIRECTORY = "/Users/mika/chef/chef-repo";
-
+	
 	private volatile boolean isChefRunning = false;
 
 	private final Lock chefLock = new ReentrantLock();
 
 	public static final int RETURN_CODE_CHEF_ALREADY_RUNNING = 500;
 
+	private ChefService chefService;
+	
 	public ChefFacade() {
 		super();
 	}
-
+	
+	@Autowired
+	public void setChefService(ChefService chefService) {
+		this.chefService = chefService;
+	}
+	
 	@Async
-	public Future<ChefResult> provisionNewInstance() {
+	public Future<ChefResult> provisionNewInstance(int amount) {
 		// knife ec2 server create -I ami-3d4ff254 -x ubuntu -r
 		// "role[base],role[testapp]" --flavor m1.small
 		if (chefLock.tryLock()) {
 			try {
 				isChefRunning = true;
-				CommandLine cmdLine = new CommandLine("knife")
-						.addArgument("ec2").addArgument("server")
-						.addArgument("create").addArgument("-I")
-						.addArgument("ami-990b81f0").addArgument("-x")
-						.addArgument("ubuntu").addArgument("-r")
-						.addArgument("role[base],role[testapp]")
-						.addArgument("--flavor").addArgument("m1.small");
-
-				DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
-
-				ExecuteWatchdog watchdog = new ExecuteWatchdog(7*60*1000);
-				Executor executor = new DefaultExecutor();
-				executor.setExitValue(1);
-				executor.setWatchdog(watchdog);
-				executor.setWorkingDirectory(new File(WORKING_DIRECTORY));
-				try {
-					executor.execute(cmdLine, resultHandler);
-				} catch (ExecuteException e) {
-					e.printStackTrace();
-				} catch (IOException e) {
-					e.printStackTrace();
+				boolean failures = false;
+				List<Future<DefaultExecuteResultHandler>> futures = 
+						new ArrayList<Future<DefaultExecuteResultHandler>>();
+				for (int i = 0; i < amount; ++i) {
+					futures.add(chefService.newInstanceImpl());
 				}
-
-				try {
-					resultHandler.waitFor();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				for (Future<DefaultExecuteResultHandler> future : futures) {
+					try {
+						if (future.get().getExitValue() != 0) {
+							failures = true;
+						}
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					} catch (ExecutionException e) {
+						e.printStackTrace();
+						failures = true;
+					}
 				}
-				LOGGER.info("Chef provisionNewInstance result: " 
-						+ resultHandler.getExitValue());
-				return new AsyncResult<ChefResult>(
-						new ChefResult(resultHandler.getExitValue()));
+				return new AsyncResult<ChefResult>(new ChefResult(
+						failures ? 666 : 0));
 			} finally {
 				isChefRunning = false;
 				chefLock.unlock();
 			}
 		} else {
 			LOGGER.info("Chef already running! Skipping this provisionNewInstance request!");
-			return new AsyncResult<ChefResult>(new ChefResult(RETURN_CODE_CHEF_ALREADY_RUNNING));
+			return new AsyncResult<ChefResult>(new ChefResult(
+					RETURN_CODE_CHEF_ALREADY_RUNNING));
 		}
 	}
 
 	@Async
-	public Future<ChefResult> terminateInstance() {
+	public Future<ChefResult> terminateInstance(int amount) {
 		if (chefLock.tryLock()) {
 			try {
 				isChefRunning = true;
-				List<NodeInfo> nodes = getNodes();
+				List<NodeInfo> nodes = chefService.getNodes();
 				if (nodes.size() > 1) {
-					return new AsyncResult<ChefResult>(new ChefResult(
-							terminateInstanceImpl(findOldestInstance(nodes))));
+					int amountOKToTerminate = amount;
+					while (nodes.size() - amountOKToTerminate < 1) {
+						--amountOKToTerminate;
+					}
+					LOGGER.info("Terminating " + amountOKToTerminate + " instances");
+					boolean failures = false;
+					List<Future<DefaultExecuteResultHandler>> futures = 
+							new ArrayList<Future<DefaultExecuteResultHandler>>();
+					for (int i = 0; i < amountOKToTerminate; ++i) {
+						futures.add(chefService.terminateInstanceImpl(
+								findAndRemoveOldestInstance(nodes)));
+					}
+					for (Future<DefaultExecuteResultHandler> future : futures) {
+						try {
+							if (future.get().getExitValue() != 0) {
+								failures = true;
+							}
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						} catch (ExecutionException e) {
+							e.printStackTrace();
+							failures = true;
+						}
+					}
+
+					return new AsyncResult<ChefResult>(
+							new ChefResult(failures ? 666 : 0));
 				} else {
 					LOGGER.info("Not terminating an instance as there are less than two.");
 					return new AsyncResult<ChefResult>(new ChefResult(0));
@@ -129,45 +121,13 @@ public class ChefFacade {
 			}
 		} else {
 			LOGGER.info("Chef already running! Skipping this terminate request!");
-			return new AsyncResult<ChefResult>(new ChefResult(RETURN_CODE_CHEF_ALREADY_RUNNING));
+			return new AsyncResult<ChefResult>(new ChefResult(
+					RETURN_CODE_CHEF_ALREADY_RUNNING));
 		}
 	}
 
 	public boolean isChefRunning() {
 		return isChefRunning;
-	}
-
-	private int terminateInstanceImpl(String instanceToTerminate) {
-		// knife ec2 server delete i-0d4c1772 -P
-		CommandLine cmdLine = new CommandLine("knife").addArgument("ec2")
-				.addArgument("server").addArgument("delete")
-				.addArgument(instanceToTerminate).addArgument("--purge")
-				.addArgument("--yes");
-
-		DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
-
-		ExecuteWatchdog watchdog = new ExecuteWatchdog(30 * 1000);
-		Executor executor = new DefaultExecutor();
-		executor.setExitValue(1);
-		executor.setWatchdog(watchdog);
-		executor.setWorkingDirectory(new File(WORKING_DIRECTORY));
-		try {
-			executor.execute(cmdLine, resultHandler);
-		} catch (ExecuteException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		try {
-			resultHandler.waitFor();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		LOGGER.info("Chef terminateInstanceImpl result: " 
-				+ resultHandler.getExitValue());
-		return resultHandler.getExitValue();
-
 	}
 
 	/**
@@ -176,11 +136,7 @@ public class ChefFacade {
 	 * @param nodes
 	 * @return
 	 */
-	private String findOldestInstance(List<NodeInfo> nodes) {
-		// knife search node role:testapp -F json
-		if (nodes == null) {
-			nodes = getNodes();
-		}
+	private String findAndRemoveOldestInstance(List<NodeInfo> nodes) {
 		Collections.sort(nodes, new Comparator<NodeInfo>() {
 			@Override
 			public int compare(NodeInfo o1, NodeInfo o2) {
@@ -190,69 +146,9 @@ public class ChefFacade {
 		});
 
 		if (nodes.size() > 0) {
-			return nodes.get(0).instanceId;
+			return nodes.remove(0).instanceId;
 		} else {
 			return null;
 		}
-	}
-
-	private List<NodeInfo> getNodes() {
-		CommandLine cmdLine = new CommandLine("knife").addArgument("search")
-				.addArgument("node").addArgument("role:testapp")
-				.addArgument("-F").addArgument("json");
-
-		DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
-
-		ExecuteWatchdog watchdog = new ExecuteWatchdog(30 * 1000);
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		ByteArrayOutputStream err = new ByteArrayOutputStream();
-		ExecuteStreamHandler streamHandler = new PumpStreamHandler(out, err);
-		Executor executor = new DefaultExecutor();
-		executor.setStreamHandler(streamHandler);
-		executor.setExitValue(1);
-		executor.setWatchdog(watchdog);
-		executor.setWorkingDirectory(new File(WORKING_DIRECTORY));
-
-		try {
-			executor.execute(cmdLine, resultHandler);
-		} catch (ExecuteException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		try {
-			resultHandler.waitFor();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-
-		List<NodeInfo> nodes = new ArrayList<NodeInfo>();
-		JsonElement root = null;
-		try {
-			root = new JsonParser().parse(out.toString("UTF-8"));
-		} catch (Exception e) {
-			e.printStackTrace();
-			LOGGER.error("Error getting node info from Chef. "
-					+ "Returning empty node info.", e);
-			return nodes;
-		}
-		JsonArray rows = root.getAsJsonObject().getAsJsonArray("rows");
-		for (JsonElement row : rows) {
-			NodeInfo node = new NodeInfo();
-			node.uptimeSeconds = row.getAsJsonObject()
-					.getAsJsonObject("automatic")
-					.getAsJsonPrimitive("uptime_seconds").getAsInt();
-			node.instanceId = row.getAsJsonObject()
-					.getAsJsonObject("automatic").getAsJsonObject("ec2")
-					.getAsJsonPrimitive("instance_id").getAsString();
-			nodes.add(node);
-		}
-		return nodes;
-	}
-
-	private class NodeInfo {
-		public String instanceId;
-		public Integer uptimeSeconds;
 	}
 }

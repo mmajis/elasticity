@@ -82,8 +82,9 @@ public class HomeController {
 				reader);
 //		runProcess(summaryXML, hostXML);
 		
-		scalingDecisionService.makeScalingDecision(
-				GangliaConverter.convert(summaryXML, hostXML));
+		//don't call this, it will screw up slope calculation if called outside schedule.
+//		scalingDecisionService.makeScalingDecision(
+//				GangliaConverter.convert(summaryXML, hostXML));
 
 		String xml = "summary:\n" + xmlSummary + "\n\n\n\nhosts:\n" + xmlHosts;
 		model.addAttribute(
