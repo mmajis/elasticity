@@ -76,7 +76,8 @@ public class UtilityFunctionScalingDecisionService implements
 	private volatile long previousScalingOperationStartTime = 0;
 	private volatile long previousScalingOperationEndTime = 0;
 	
-	private volatile double utilityGaugeValue, requestRatePreferenceGaugeValue,
+	private volatile double utilityGaugeValue, scalingUtilityGaugeValue,
+			requestRatePreferenceGaugeValue,
 			costPreferenceGaugeValue, responseTimePreferenceGaugeValue, 
 			costPerRequestPerSecondGaugeValue, 	responseTimeSlopeGaugeValue,
 			vmCountGaugeValue, referenceThroughputGaugeValue, 
@@ -175,15 +176,15 @@ public class UtilityFunctionScalingDecisionService implements
 						return vmCountGaugeValue;
 					}
 				});
-		Metrics.defaultRegistry().newGauge(
-				new MetricName("elasticity", "utility",
-						"referenceThroughput"), new Gauge<Double>() {
-
-					@Override
-					public Double getValue() {
-						return referenceThroughputGaugeValue;
-					}
-				});
+//		Metrics.defaultRegistry().newGauge(
+//				new MetricName("elasticity", "utility",
+//						"referenceThroughput"), new Gauge<Double>() {
+//
+//					@Override
+//					public Double getValue() {
+//						return referenceThroughputGaugeValue;
+//					}
+//				});
 		Metrics.defaultRegistry().newGauge(
 				new MetricName("elasticity", "utility",
 						"maxCostPerRequest"), new Gauge<Double>() {
@@ -200,6 +201,14 @@ public class UtilityFunctionScalingDecisionService implements
 					@Override
 					public Double getValue() {
 						return minCostPerReqGaugeValue;
+					}
+				});
+		Metrics.defaultRegistry().newGauge(
+				new MetricName("elasticity", "utility",
+						"scalingUtility"), new Gauge<Double>() {
+					@Override
+					public Double getValue() {
+						return scalingUtilityGaugeValue;
 					}
 				});
 	}
@@ -228,12 +237,13 @@ public class UtilityFunctionScalingDecisionService implements
 	@Override
 	public void makeScalingDecision(
 			List<Cluster> sensorData) {
+		//parse metrics
 		Map<String, SummaryMetric> metrics = digMetrics(sensorData);
 		
 		for (SummaryMetric metric : metrics.values()) {
 			LOGGER.debug(metric.toString());
 		}
-		
+		//collect metrics needed for analysis
 		double vmCount = metrics.get(VM_COUNT_METRIC_NAME).getSum().doubleValue();
 		vmCountGaugeValue = vmCount;
 		double requestRate = metrics.get(REQUEST_RATE_METRIC_NAME).getSum().doubleValue();
@@ -245,6 +255,8 @@ public class UtilityFunctionScalingDecisionService implements
 		if (responseTimeSlope > RESP_TIME_SPIKE_SLOPE_THRESHOLD) {
 			LOGGER.debug("\n\n\n!!!SPIKE!!!");
 		}
+		double utility = getPlainUtility(
+				responseTime, vmCount, requestRate, queueSize, responseTimeSlope);
 		double scalingUtility = getScalingUtility(		
 				responseTime, vmCount, requestRate, queueSize, responseTimeSlope);
 		
@@ -282,7 +294,7 @@ public class UtilityFunctionScalingDecisionService implements
 					
 				}
 			}
-
+			//max cost check
 			if (vmCount * COST_PER_VM > MAX_COST) {
 				for (int i = (int)vmCount; i * COST_PER_VM > MAX_COST; --i) {
 					LOGGER.info("Terminating an instance to get below max cost!");
@@ -290,25 +302,31 @@ public class UtilityFunctionScalingDecisionService implements
 							responseTimeSlope, queueSize);
 				}
 			}
-			
-			if (scalingUtility > 0.9 
-					&& requestRate > 2 
-					&& ((vmCount + 1) * COST_PER_VM) <= MAX_COST) {
-				boundaryRates.add(requestRate);
-				LOGGER.info("Provisioning new instance...");
-				chefResultFuture = provisionNewInstances(vmCount, queueSize, responseTimeSlope);
-			} else if (scalingUtility < -0.5) {
-				LOGGER.info("Terminating an instance...");
-				previousScalingOperationStartTime = System.currentTimeMillis();
-				chefResultFuture = terminateInstances(vmCount, requestRate, 
-						responseTimeSlope, queueSize);
-			} else {
-				LOGGER.info("No scaling operations decided.");
-				if (((vmCount + 1) * COST_PER_VM) > MAX_COST) {
-					LOGGER.info("Scaling up would exceed cost.");
+			if (utility < 0.7) { //do MAPE-K planning
+				LOGGER.debug("Planning phase...");
+				//if (scalingUtility > 0.9 
+				if (scalingUtility > 0
+						&& requestRate > 2 
+						&& ((vmCount + 1) * COST_PER_VM) <= MAX_COST) {
+					boundaryRates.add(requestRate);
+					LOGGER.info("Provisioning new instance...");
+					chefResultFuture = provisionNewInstances(vmCount, queueSize, responseTimeSlope);
+				//} else if (scalingUtility < -0.5) {
+				} else if (scalingUtility < -0.5) {
+					LOGGER.info("Terminating an instance...");
+					previousScalingOperationStartTime = System.currentTimeMillis();
+					chefResultFuture = terminateInstances(vmCount, requestRate, 
+							responseTimeSlope, queueSize);
+				} else {
+					LOGGER.info("No scaling operations decided in planning.");
+					if (((vmCount + 1) * COST_PER_VM) > MAX_COST) {
+						LOGGER.info("Scaling up would exceed cost.");
+					}
 				}
+			} else {
+				LOGGER.debug("Utility " + utility + " does not require scaling operations.");
 			}
-		}
+		} //end synchronized block
 	}
 
 	private synchronized double calculateRespTimeSlope(double responseTime) {
@@ -374,6 +392,20 @@ public class UtilityFunctionScalingDecisionService implements
 		return metrics;
 	}
 
+	private double getPlainUtility(double responseTime, double vmCount,
+			double requestRate, double queueSize, double responseTimeSlope) {
+		
+		double respTimeWeight = 0.5, costWeight = 0.5;
+		
+		double value = respTimeWeight * responseTimePreference(
+						requestRate, vmCount, responseTime, responseTimeSlope)
+			   + costWeight * costPreference(
+					   	requestRate, vmCount, responseTimeSlope, queueSize);
+		utilityGaugeValue = value;
+		LOGGER.debug("Plain utility: " + value);
+		return value;
+	}
+	
 	@SuppressWarnings("unused")
 	private double getScalingUtility(double responseTime, double vmCount,
 			double requestRate, double queueSize, double responseTimeSlope) {
@@ -390,14 +422,14 @@ public class UtilityFunctionScalingDecisionService implements
 		
 		double value = 
 				respTimeWeight 
-				* responseTimePreference(requestRate, vmCount, responseTime, responseTimeSlope)
+				* (1 - responseTimePreference(requestRate, vmCount, responseTime, responseTimeSlope))
 				+ costWeight 
-				* costPreference(requestRate, vmCount, responseTimeSlope, queueSize);
+				* - (1 - costPreference(requestRate, vmCount, responseTimeSlope, queueSize));
 //				+ requestRateWeight
 //				* throughputPreference(requestRate, vmCount, responseTime);
 
-		utilityGaugeValue = value;
-		LOGGER.debug("Utility: " + value);
+		scalingUtilityGaugeValue = value;
+		LOGGER.debug("Scaling utility: " + value);
 		return value;
 	}
 
@@ -412,17 +444,17 @@ public class UtilityFunctionScalingDecisionService implements
 	 * @return
 	 */
 	private double responseTimePreference(double requestRate, double vmCount, 
-			  double responseTime, double ResponseTimeSlope) {
+			  double responseTime, double responseTimeSlope) {
 //		if (vmCount == 1 && requestRate < okThroughputPerVM) {
 //			return 0;
 //		}
 		double value;
 		if (responseTime < MIN_RESPONSE_TIME) {
-			value = 0;
-		} else if (responseTime > MAX_RESPONSE_TIME || ResponseTimeSlope > RESP_TIME_SPIKE_SLOPE_THRESHOLD) {
 			value = 1;
+		} else if (responseTime > MAX_RESPONSE_TIME || responseTimeSlope > RESP_TIME_SPIKE_SLOPE_THRESHOLD) {
+			value = 0;
 		} else {
-			value = (responseTime - MIN_RESPONSE_TIME)
+			value = 1 - (responseTime - MIN_RESPONSE_TIME)
 					/ (MAX_RESPONSE_TIME - MIN_RESPONSE_TIME);
 		}
 		responseTimePreferenceGaugeValue = value;
@@ -441,34 +473,36 @@ public class UtilityFunctionScalingDecisionService implements
 		if (minCostPerRequest > maxCostPerRequest) {
 			minCostPerRequest = maxCostPerRequest;
 		}
-		double costRangeMean = (maxCostPerRequest + minCostPerRequest) / 2.0;
+		minCostPerReqGaugeValue = minCostPerRequest;
+		maxCostPerReqGaugeValue = maxCostPerRequest;
+		//double costRangeMean = (maxCostPerRequest + minCostPerRequest) / 2.0;
 		
 		LOGGER.debug("Max cost per request: " + maxCostPerRequest);
 		LOGGER.debug("Min cost per request: " + minCostPerRequest);
 		LOGGER.debug("Cost per request: " + cost);
-		LOGGER.debug("Mean of min + max: " + costRangeMean);
-		double costPerRequestPreference = 0;
+		//LOGGER.debug("Mean of min + max: " + costRangeMean);
+		double costPerRequestPreference = 1;
 		if ((vmCount * COST_PER_VM) > MAX_COST) {
 			LOGGER.debug("Raw cost " + vmCount * COST_PER_VM 
 					+ " exceeds global MAX_COST of " + MAX_COST);
-			costPerRequestPreference = -1;
+			costPerRequestPreference = 0;
 		} else {
 			if (cost > maxCostPerRequest) {
 				if (vmCount == 1) {
-					costPerRequestPreference = 0;
+					costPerRequestPreference = 1;
 				} else {
-					costPerRequestPreference = -1;
+					costPerRequestPreference = 0;
 				}
 			} else if (cost < minCostPerRequest) {
-				costPerRequestPreference = 0;
+				costPerRequestPreference = 1;
 			}
 //			else if (cost > costRangeMean) {
 			else if (cost > minCostPerRequest) {
 				if (vmCount == 1) {
-					costPerRequestPreference = 0;
+					costPerRequestPreference = 1;
 				} else {
 					costPerRequestPreference = 
-							-((cost - minCostPerRequest)
+							 1 - ((cost - minCostPerRequest)
 							/ (maxCostPerRequest - minCostPerRequest));
 				}
 			}
@@ -477,33 +511,32 @@ public class UtilityFunctionScalingDecisionService implements
 //				costPerRequestPreference = 1 - (
 //						((cost - minCostPerRequest)
 //						/ (costRangeMean - minCostPerRequest)));
-				costPerRequestPreference = 0;
+				costPerRequestPreference = 1;
 			}
 		}
-		if (costPerRequestPreference > 0 && ((vmCount + 1) * COST_PER_VM) > MAX_COST) {
-			LOGGER.debug("Setting cost preference to zero in order not to exceed MAX_COST");
-			costPerRequestPreference = 0;
-		}
-		if (costPerRequestPreference < 0 && vmCount == 1) {
+//		if (costPerRequestPreference > 0 && ((vmCount + 1) * COST_PER_VM) > MAX_COST) {
+//			LOGGER.debug("Setting cost preference to zero in order not to exceed MAX_COST");
+//			costPerRequestPreference = 0;
+//		}
+		if (costPerRequestPreference < 1 && vmCount == 1) {
 			LOGGER.debug("Setting cost preference ("+costPerRequestPreference
-					+") to zero. Not suggesting to remove single VM instance");
-			costPerRequestPreference = 0;
+					+") to maximum. Not suggesting to remove single VM instance");
+			costPerRequestPreference = 1;
 		}
-		if (responseTimeSlope > 50 && costPerRequestPreference < 0) {
+		if (responseTimeSlope > 50 && costPerRequestPreference < 1) {
 			LOGGER.debug("Setting cost preference ("+costPerRequestPreference
-					+") to zero. Response time slope is high.");
-			costPerRequestPreference = 0;
+					+") to maximum. Response time slope is high.");
+			costPerRequestPreference = 1;
 		}
-		if (queueSize > 0 && costPerRequestPreference < 0) {
-			//TODO should cost pref be positive here since there is queue?
+		if (queueSize > 0 && costPerRequestPreference < 1) {
 			LOGGER.debug("Setting cost preference ("+costPerRequestPreference
-					+") to zero. There are queueing requests.");
-			costPerRequestPreference = 0;
+					+") to maximum. There are queueing requests.");
+			costPerRequestPreference = 1;
 		}
 		costPerRequestPerSecondGaugeValue = cost;
 		costPreferenceGaugeValue = costPerRequestPreference;
 		LOGGER.debug("Cost preference: " + costPerRequestPreference);
-		return costPerRequestPreference;
+		return costPerRequestPreference; 
 	}
 
 //	/**
@@ -604,7 +637,8 @@ public class UtilityFunctionScalingDecisionService implements
 			costPref = costPreference(requestRate, i, responseTimeSlope, queueSize);
 			LOGGER.debug("getScaleInAmount trying " 
 					+ i + " VM. CostPreference: " + costPref);
-			if (costPref >= 0) {
+			//if (costPref >= 0) {
+			if (costPref == 1) {
 				amountToTerminate = (int)vmCount - i;
 				break;
 			} else {
@@ -618,28 +652,23 @@ public class UtilityFunctionScalingDecisionService implements
 
 	private int getScaleOutAmount(double vmCount, double queueSize, double responseTimeSlope) {
 		double suggestedScaleOutAmount = 0;
-		if (queueSize < 1) {
+//		if (queueSize < 1) {
 			//slope based calculation
 			/*
-			 * lets say the 1 minute slope is more than half a second (> 500). 
-			 * Then we go for spike. Otherwise we go for slow growth.
+			 * if spike threshold is passed, we go for spike. 
+			 * Otherwise we go for slow growth.
 			 */
 			if (responseTimeSlope > RESP_TIME_SPIKE_SLOPE_THRESHOLD) {
 				suggestedScaleOutAmount = vmCount * 3;
 			} else {
 				suggestedScaleOutAmount = 0.5 * vmCount;
 			}
-		} else {
+//		} else {
 			//divide pool size by 2 because the accumulated queue keeps load high so request
 			//rate needs to really drop well to be able to clear the queue
-			
-			//TODO add VMs until cost goes to max? i.e. always max out? wtf? 
-			//or make below calculation with nginx active conns amount instead of jetty queue?
-			
-			//TODO Limit jetty queue so that a queued up instance won't give bad performance after others join!
-			
-			suggestedScaleOutAmount = queueSize / (VM_THREAD_POOL_SIZE / 2.0);
-		}
+					
+//			suggestedScaleOutAmount = queueSize / (VM_THREAD_POOL_SIZE / 2.0);
+		//}
 		return ceilSuggestedVMAmountToCostLimit(vmCount,
 				suggestedScaleOutAmount);
 	}
@@ -655,39 +684,39 @@ public class UtilityFunctionScalingDecisionService implements
 		return allowedAmount;
 	}
 
-	private Future<ChefResult> fakeChefRun() {
-		return new Future<ChefResult>() {
-	
-			@Override
-			public boolean cancel(boolean mayInterruptIfRunning) {
-				return true;
-			}
-	
-			@Override
-			public boolean isCancelled() {
-				return false;
-			}
-	
-			@Override
-			public boolean isDone() {
-				return true;
-			}
-	
-			@Override
-			public ChefResult get() throws InterruptedException,
-					ExecutionException {
-				return new ChefResult(0);
-			}
-	
-			@Override
-			public ChefResult get(long timeout, TimeUnit unit)
-					throws InterruptedException, ExecutionException,
-					TimeoutException {
-				return new ChefResult(0);
-			}
-			
-		};
-	}
+//	private Future<ChefResult> fakeChefRun() {
+//		return new Future<ChefResult>() {
+//	
+//			@Override
+//			public boolean cancel(boolean mayInterruptIfRunning) {
+//				return true;
+//			}
+//	
+//			@Override
+//			public boolean isCancelled() {
+//				return false;
+//			}
+//	
+//			@Override
+//			public boolean isDone() {
+//				return true;
+//			}
+//	
+//			@Override
+//			public ChefResult get() throws InterruptedException,
+//					ExecutionException {
+//				return new ChefResult(0);
+//			}
+//	
+//			@Override
+//			public ChefResult get(long timeout, TimeUnit unit)
+//					throws InterruptedException, ExecutionException,
+//					TimeoutException {
+//				return new ChefResult(0);
+//			}
+//			
+//		};
+//	}
 
 //	private boolean requestRateTooLowForVMCount(double vmCount,
 //			double requestRate) {
